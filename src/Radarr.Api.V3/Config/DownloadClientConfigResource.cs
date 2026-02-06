@@ -12,6 +12,13 @@ namespace Radarr.Api.V3.Config
 
         public bool AutoRedownloadFailed { get; set; }
         public bool AutoRedownloadFailedFromInteractiveSearch { get; set; }
+
+        // Download Decision Override
+        public bool DownloadDecisionOverrideEnabled { get; set; }
+        public string DownloadDecisionOverrideUrl { get; set; }
+        public int DownloadDecisionOverrideTimeout { get; set; }
+        public string DownloadDecisionOverrideUsername { get; set; }
+        public string DownloadDecisionOverridePassword { get; set; }
     }
 
     public static class DownloadClientConfigResourceMapper
@@ -26,7 +33,14 @@ namespace Radarr.Api.V3.Config
                 CheckForFinishedDownloadInterval = model.CheckForFinishedDownloadInterval,
 
                 AutoRedownloadFailed = model.AutoRedownloadFailed,
-                AutoRedownloadFailedFromInteractiveSearch = model.AutoRedownloadFailedFromInteractiveSearch
+                AutoRedownloadFailedFromInteractiveSearch = model.AutoRedownloadFailedFromInteractiveSearch,
+
+                // Download Decision Override
+                DownloadDecisionOverrideEnabled = model.DownloadDecisionOverrideEnabled,
+                DownloadDecisionOverrideUrl = model.DownloadDecisionOverrideUrl,
+                DownloadDecisionOverrideTimeout = model.DownloadDecisionOverrideTimeout,
+                DownloadDecisionOverrideUsername = model.DownloadDecisionOverrideUsername,
+                DownloadDecisionOverridePassword = model.DownloadDecisionOverridePassword
             };
         }
     }

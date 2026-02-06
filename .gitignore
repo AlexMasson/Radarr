@@ -174,3 +174,6 @@ node_modules.nosync
 
 # Ignore Jetbrains IntelliJ Workspace Directories
 .idea/
+
+# github copilot
+.github/copilot-instructions.md

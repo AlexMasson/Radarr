@@ -1,5 +1,64 @@
 # Radarr
 
+> **⚡ This is a fork** with the **Download Decision Override** feature ([#11372](https://github.com/Radarr/Radarr/issues/11372)).
+>
+> Docker image: `ghcr.io/alexmasson/radarr:latest`
+>
+> Based on **stable** (`master`) · [📋 View all changes vs upstream](https://github.com/Radarr/Radarr/compare/master...AlexMasson:Radarr:feature/download_decision_override_stable)
+
+---
+
+## Why this fork?
+
+Radarr's built-in release selection uses Custom Formats and quality scoring. It works, but expressing complex multi-criteria preferences — like "prefer MULTI with French dub, x265 for efficiency, avoid YIFY, 4-12GB for 1080p but allow remux up to 40GB for 4K" — requires dozens of CFs and scoring rules that are hard to reason about and maintain.
+
+This fork adds a single feature: a **pre-grab webhook** that sends all candidate releases to an external service for evaluation. A plain-text prompt handles nuanced selection logic naturally. If the webhook fails or times out, Radarr falls back to its normal selection — nothing breaks.
+
+The feature was proposed in [#11372](https://github.com/Radarr/Radarr/issues/11372) and rejected upstream. This fork implements it as a clean, minimal addition (~300 lines of C#) on top of the stable `master` branch.
+
+## Fork Feature: Download Decision Override
+
+### How it works
+
+1. Radarr finds candidate releases for a movie
+2. Before grabbing, it sends ALL candidates to a configured webhook URL
+3. The webhook returns the GUID of the preferred release
+4. Radarr downloads that specific release
+
+**Fail-safe**: If the webhook fails, times out, or isn't configured — Radarr falls back to its normal selection.
+
+### Settings UI
+
+The configuration lives in **Settings → Download Clients → Download Decision Override**:
+
+![Download Decision Override — Radarr](docs/screenshots/radarr-ddo-settings.png)
+
+- **Enable**: Toggle the feature on/off
+- **Webhook URL**: The endpoint that receives candidate releases
+- **Timeout**: Max wait time before falling back to default selection (recommended: 30s)
+- **Username/Password**: Optional Basic authentication
+
+### Quick start
+
+```yaml
+# Use this fork instead of the official image
+services:
+  radarr:
+    image: ghcr.io/alexmasson/radarr:latest
+    # ... rest of your config stays the same
+```
+
+Then configure the webhook in **Settings → Download Clients → Download Decision Override**:
+- URL: `http://your-webhook:8080/hook/radarr/override`
+- Timeout: `30` seconds
+
+### Related Projects
+
+- **[arr-llm-release-picker](https://github.com/AlexMasson/arr-llm-release-picker)** — AI-powered release selection using LLMs (reference webhook implementation)
+- **[AlexMasson/Sonarr](https://github.com/AlexMasson/Sonarr)** — Same feature for TV shows
+
+---
+
 [![Build Status](https://dev.azure.com/Radarr/Radarr/_apis/build/status/Radarr.Radarr?branchName=develop)](https://dev.azure.com/Radarr/Radarr/_build/latest?definitionId=1&branchName=develop)
 [![Translation status](https://translate.servarr.com/widget/servarr/radarr/svg-badge.svg)](https://translate.servarr.com/engage/servarr/?utm_source=widget)
 [![Docker Pulls](https://img.shields.io/docker/pulls/linuxserver/radarr.svg)](https://wiki.servarr.com/radarr/installation/docker)

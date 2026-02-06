@@ -18,6 +18,13 @@ namespace NzbDrone.Core.Configuration
         int DownloadClientHistoryLimit { get; set; }
         int CheckForFinishedDownloadInterval { get; set; }
 
+        // Download Decision Override
+        bool DownloadDecisionOverrideEnabled { get; set; }
+        string DownloadDecisionOverrideUrl { get; set; }
+        int DownloadDecisionOverrideTimeout { get; set; }
+        string DownloadDecisionOverrideUsername { get; set; }
+        string DownloadDecisionOverridePassword { get; set; }
+
         // Completed/Failed Download Handling (Download client)
         bool EnableCompletedDownloadHandling { get; set; }
 

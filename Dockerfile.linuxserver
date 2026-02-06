@@ -1,0 +1,171 @@
+# syntax=docker/dockerfile:1
+# Dockerfile for building Radarr fork - Compatible with LinuxServer.io structure
+# Based on: https://github.com/linuxserver/docker-radarr
+# 
+# OPTIMIZATION: Uses layer caching for dependencies
+# - Frontend: yarn install cached until package.json/yarn.lock change
+# - Backend: dotnet restore cached until *.csproj files change
+
+# =============================================================================
+# STAGE 1: Build Frontend
+# =============================================================================
+FROM node:20-alpine AS frontend-build
+
+WORKDIR /src
+
+# Step 1: Copy only dependency files (cached layer)
+COPY package.json yarn.lock .yarnrc ./
+
+# Step 2: Install dependencies (cached unless package.json/yarn.lock change)
+RUN yarn install --frozen-lockfile
+
+# Step 3: Copy source and build (only this rebuilds on code changes)
+COPY tsconfig.json ./
+COPY frontend/ frontend/
+RUN yarn build --env production
+
+# =============================================================================
+# STAGE 2: Build Backend
+# =============================================================================
+FROM mcr.microsoft.com/dotnet/sdk:8.0-alpine AS backend-build
+
+WORKDIR /src
+
+# Step 1: Copy only project files for restore (cached layer)
+COPY src/Radarr.sln src/Directory.Build.props src/Directory.Build.targets src/NuGet.config src/
+COPY src/NzbDrone.Console/*.csproj src/NzbDrone.Console/
+COPY src/NzbDrone.Host/*.csproj src/NzbDrone.Host/
+COPY src/NzbDrone.Core/*.csproj src/NzbDrone.Core/
+COPY src/NzbDrone.Common/*.csproj src/NzbDrone.Common/
+COPY src/NzbDrone.Mono/*.csproj src/NzbDrone.Mono/
+COPY src/NzbDrone.Update/*.csproj src/NzbDrone.Update/
+COPY src/NzbDrone.SignalR/*.csproj src/NzbDrone.SignalR/
+COPY src/Radarr.Api.V3/*.csproj src/Radarr.Api.V3/
+COPY src/Radarr.Http/*.csproj src/Radarr.Http/
+COPY src/Libraries/*.csproj src/Libraries/
+
+# Step 2: Restore dependencies (cached unless csproj files change)
+WORKDIR /src/src
+RUN dotnet restore NzbDrone.Console/Radarr.Console.csproj -r linux-musl-x64 && \
+    dotnet restore NzbDrone.Mono/Radarr.Mono.csproj -r linux-musl-x64 && \
+    dotnet restore NzbDrone.Update/Radarr.Update.csproj -r linux-musl-x64
+
+# Step 3: Copy remaining source code
+WORKDIR /src
+COPY src/ src/
+COPY Logo/ Logo/
+
+# Copy frontend build output
+COPY --from=frontend-build /src/_output/UI src/NzbDrone.Host/UI
+
+WORKDIR /src/src
+
+# Step 4: Build (uses restored packages from cache, --no-restore for speed)
+RUN dotnet publish NzbDrone.Console/Radarr.Console.csproj \
+    -c Release \
+    -f net8.0 \
+    -r linux-musl-x64 \
+    --no-self-contained \
+    --no-restore \
+    -o /output \
+    -p:AnalysisLevel=none \
+    -p:EnableNETAnalyzers=false \
+    -p:RunAnalyzers=false \
+    -p:TreatWarningsAsErrors=false
+
+# Build Mono (Linux-specific) DLL - loaded dynamically at runtime
+RUN dotnet publish NzbDrone.Mono/Radarr.Mono.csproj \
+    -c Release \
+    -f net8.0 \
+    -r linux-musl-x64 \
+    --no-self-contained \
+    --no-restore \
+    -o /output \
+    -p:AnalysisLevel=none \
+    -p:EnableNETAnalyzers=false \
+    -p:RunAnalyzers=false \
+    -p:TreatWarningsAsErrors=false
+
+# Copy frontend to output (dotnet publish doesn't include UI files)
+COPY --from=frontend-build /src/_output/UI /output/UI
+
+# Build updater (optional, remove if not needed)
+RUN dotnet publish NzbDrone.Update/Radarr.Update.csproj \
+    -c Release \
+    -f net8.0 \
+    -r linux-musl-x64 \
+    --no-self-contained \
+    --no-restore \
+    -o /output/Radarr.Update \
+    -p:AnalysisLevel=none \
+    -p:EnableNETAnalyzers=false \
+    -p:RunAnalyzers=false \
+    -p:TreatWarningsAsErrors=false
+
+# =============================================================================
+# STAGE 3: Runtime (LinuxServer.io compatible)
+# Same base image as official linuxserver/radarr
+# =============================================================================
+FROM ghcr.io/linuxserver/baseimage-alpine:3.23
+
+# Labels
+ARG BUILD_DATE
+ARG VERSION="fork-dev"
+LABEL build_version="Radarr Fork version:- ${VERSION} Build-date:- ${BUILD_DATE}"
+LABEL maintainer="fork"
+
+# Environment settings (same as LinuxServer)
+ENV XDG_CONFIG_HOME="/config/xdg" \
+    COMPlus_EnableDiagnostics=0 \
+    TMPDIR=/run/radarr-temp
+
+# Install runtime dependencies (same as LinuxServer + .NET runtime)
+RUN echo "**** install packages ****" && \
+    apk add -U --upgrade --no-cache \
+        aspnetcore8-runtime \
+        icu-libs \
+        sqlite-libs \
+        xmlstarlet && \
+    echo "**** create directories ****" && \
+    mkdir -p /app/radarr/bin && \
+    echo "**** cleanup ****" && \
+    rm -rf /tmp/*
+
+# Copy built application from build stage
+COPY --from=backend-build /output /app/radarr/bin
+
+# Create package_info (like LinuxServer does)
+RUN echo -e "UpdateMethod=docker\nBranch=fork\nPackageVersion=${VERSION}\nPackageAuthor=fork" > /app/radarr/package_info
+
+# Remove updater if you want (LinuxServer removes it)
+# RUN rm -rf /app/radarr/bin/Radarr.Update
+
+# Create s6-overlay service structure (same as LinuxServer)
+RUN mkdir -p /etc/s6-overlay/s6-rc.d/svc-radarr/dependencies.d && \
+    touch /etc/s6-overlay/s6-rc.d/svc-radarr/dependencies.d/init-services && \
+    echo "longrun" > /etc/s6-overlay/s6-rc.d/svc-radarr/type && \
+    touch /etc/s6-overlay/s6-rc.d/user/contents.d/svc-radarr
+
+# Create run script (same as LinuxServer)
+RUN printf '#!/usr/bin/with-contenv bash\n\
+# shellcheck shell=bash\n\
+\n\
+if [[ -z ${LSIO_NON_ROOT_USER} ]]; then\n\
+    exec \\\n\
+        s6-notifyoncheck -d -n 300 -w 1000 \\\n\
+            cd /app/radarr/bin s6-setuidgid abc /app/radarr/bin/Radarr \\\n\
+            -nobrowser -data=/config\n\
+else\n\
+    exec \\\n\
+        s6-notifyoncheck -d -n 300 -w 1000 \\\n\
+            cd /app/radarr/bin /app/radarr/bin/Radarr \\\n\
+            -nobrowser -data=/config\n\
+fi\n' > /etc/s6-overlay/s6-rc.d/svc-radarr/run && \
+    chmod +x /etc/s6-overlay/s6-rc.d/svc-radarr/run
+
+# Create notification-fd file for s6 readiness
+RUN echo "3" > /etc/s6-overlay/s6-rc.d/svc-radarr/notification-fd
+
+# Ports and volumes
+EXPOSE 7878
+VOLUME /config

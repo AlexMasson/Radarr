@@ -238,6 +238,41 @@ namespace NzbDrone.Core.Configuration
             set { SetValue("DownloadClientHistoryLimit", value); }
         }
 
+        public bool DownloadDecisionOverrideEnabled
+        {
+            get { return GetValueBoolean("DownloadDecisionOverrideEnabled", false); }
+
+            set { SetValue("DownloadDecisionOverrideEnabled", value); }
+        }
+
+        public string DownloadDecisionOverrideUrl
+        {
+            get { return GetValue("DownloadDecisionOverrideUrl", string.Empty); }
+
+            set { SetValue("DownloadDecisionOverrideUrl", value); }
+        }
+
+        public int DownloadDecisionOverrideTimeout
+        {
+            get { return GetValueInt("DownloadDecisionOverrideTimeout", 30); }
+
+            set { SetValue("DownloadDecisionOverrideTimeout", value); }
+        }
+
+        public string DownloadDecisionOverrideUsername
+        {
+            get { return GetValue("DownloadDecisionOverrideUsername", string.Empty); }
+
+            set { SetValue("DownloadDecisionOverrideUsername", value); }
+        }
+
+        public string DownloadDecisionOverridePassword
+        {
+            get { return GetValue("DownloadDecisionOverridePassword", string.Empty); }
+
+            set { SetValue("DownloadDecisionOverridePassword", value); }
+        }
+
         // TODO: Rename to 'Skip Free Space Check'
         public bool SkipFreeSpaceCheckWhenImporting
         {

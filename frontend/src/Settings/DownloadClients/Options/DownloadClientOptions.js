@@ -122,6 +122,102 @@ function DownloadClientOptions(props) {
                 {translate('RemoveDownloadsAlert')}
               </Alert>
             </FieldSet>
+
+            <FieldSet legend={translate('DownloadDecisionOverride')}>
+              <Form>
+                <FormGroup
+                  advancedSettings={advancedSettings}
+                  isAdvanced={true}
+                  size={sizes.MEDIUM}
+                >
+                  <FormLabel>{translate('DownloadDecisionOverrideEnabled')}</FormLabel>
+
+                  <FormInputGroup
+                    type={inputTypes.CHECK}
+                    name="downloadDecisionOverrideEnabled"
+                    helpText={translate('DownloadDecisionOverrideEnabledHelpText')}
+                    onChange={onInputChange}
+                    {...settings.downloadDecisionOverrideEnabled}
+                  />
+                </FormGroup>
+
+                {
+                  settings.downloadDecisionOverrideEnabled.value &&
+                    <div>
+                      <FormGroup
+                        advancedSettings={advancedSettings}
+                        isAdvanced={true}
+                        size={sizes.MEDIUM}
+                      >
+                        <FormLabel>{translate('DownloadDecisionOverrideUrl')}</FormLabel>
+
+                        <FormInputGroup
+                          type={inputTypes.TEXT}
+                          name="downloadDecisionOverrideUrl"
+                          helpText={translate('DownloadDecisionOverrideUrlHelpText')}
+                          onChange={onInputChange}
+                          {...settings.downloadDecisionOverrideUrl}
+                        />
+                      </FormGroup>
+
+                      <FormGroup
+                        advancedSettings={advancedSettings}
+                        isAdvanced={true}
+                        size={sizes.MEDIUM}
+                      >
+                        <FormLabel>{translate('DownloadDecisionOverrideTimeout')}</FormLabel>
+
+                        <FormInputGroup
+                          type={inputTypes.NUMBER}
+                          name="downloadDecisionOverrideTimeout"
+                          min={1}
+                          max={300}
+                          unit="seconds"
+                          helpText={translate('DownloadDecisionOverrideTimeoutHelpText')}
+                          onChange={onInputChange}
+                          {...settings.downloadDecisionOverrideTimeout}
+                        />
+                      </FormGroup>
+
+                      <FormGroup
+                        advancedSettings={advancedSettings}
+                        isAdvanced={true}
+                        size={sizes.MEDIUM}
+                      >
+                        <FormLabel>{translate('DownloadDecisionOverrideUsername')}</FormLabel>
+
+                        <FormInputGroup
+                          type={inputTypes.TEXT}
+                          name="downloadDecisionOverrideUsername"
+                          helpText={translate('DownloadDecisionOverrideUsernameHelpText')}
+                          onChange={onInputChange}
+                          {...settings.downloadDecisionOverrideUsername}
+                        />
+                      </FormGroup>
+
+                      <FormGroup
+                        advancedSettings={advancedSettings}
+                        isAdvanced={true}
+                        size={sizes.MEDIUM}
+                      >
+                        <FormLabel>{translate('DownloadDecisionOverridePassword')}</FormLabel>
+
+                        <FormInputGroup
+                          type={inputTypes.PASSWORD}
+                          name="downloadDecisionOverridePassword"
+                          helpText={translate('DownloadDecisionOverridePasswordHelpText')}
+                          onChange={onInputChange}
+                          {...settings.downloadDecisionOverridePassword}
+                        />
+                      </FormGroup>
+                    </div>
+                }
+              </Form>
+
+              <Alert kind={kinds.INFO}>
+                {translate('DownloadDecisionOverrideInfo')}
+              </Alert>
+            </FieldSet>
           </div>
       }
     </div>

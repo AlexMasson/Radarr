@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Core.DecisionEngine;
 using NzbDrone.Core.Download.Clients;
+using NzbDrone.Core.Download.DownloadDecisionOverride;
 using NzbDrone.Core.Download.Pending;
 using NzbDrone.Core.Exceptions;
 using NzbDrone.Core.Indexers;
@@ -22,16 +23,19 @@ namespace NzbDrone.Core.Download
         private readonly IDownloadService _downloadService;
         private readonly IPrioritizeDownloadDecision _prioritizeDownloadDecision;
         private readonly IPendingReleaseService _pendingReleaseService;
+        private readonly IDownloadDecisionOverrideService _downloadDecisionOverrideService;
         private readonly Logger _logger;
 
         public ProcessDownloadDecisions(IDownloadService downloadService,
                                         IPrioritizeDownloadDecision prioritizeDownloadDecision,
                                         IPendingReleaseService pendingReleaseService,
+                                        IDownloadDecisionOverrideService downloadDecisionOverrideService,
                                         Logger logger)
         {
             _downloadService = downloadService;
             _prioritizeDownloadDecision = prioritizeDownloadDecision;
             _pendingReleaseService = pendingReleaseService;
+            _downloadDecisionOverrideService = downloadDecisionOverrideService;
             _logger = logger;
         }
 
@@ -47,6 +51,9 @@ namespace NzbDrone.Core.Download
 
             var usenetFailed = false;
             var torrentFailed = false;
+
+            // Apply download decision override to reorder/filter decisions per movie
+            prioritizedDecisions = await ApplyDownloadDecisionOverrideAsync(prioritizedDecisions, pendingAddQueue, rejected);
 
             foreach (var report in prioritizedDecisions)
             {
@@ -189,6 +196,57 @@ namespace NzbDrone.Core.Download
 
             queue.Add(Tuple.Create(report, reason));
             pending.Add(report);
+        }
+
+        private async Task<List<DownloadDecision>> ApplyDownloadDecisionOverrideAsync(
+            List<DownloadDecision> prioritizedDecisions,
+            List<Tuple<DownloadDecision, PendingReleaseReason>> pendingQueue,
+            List<DownloadDecision> rejected)
+        {
+            // Group decisions by movie to call override per-movie
+            var groupedByMovie = prioritizedDecisions
+                .GroupBy(d => d.RemoteMovie.Movie.Id)
+                .ToList();
+
+            var finalDecisions = new List<DownloadDecision>();
+
+            foreach (var movieGroup in groupedByMovie)
+            {
+                var movieDecisions = movieGroup.ToList();
+                var movie = movieDecisions.First().RemoteMovie.Movie;
+
+                var overrideResult = await _downloadDecisionOverrideService.EvaluateAsync(movie, movieDecisions);
+
+                if (overrideResult.ShouldProceed)
+                {
+                    finalDecisions.AddRange(overrideResult.ModifiedDecisions ?? movieDecisions);
+                }
+                else if (overrideResult.DeferMinutes.HasValue)
+                {
+                    // Defer all decisions for this movie
+                    foreach (var decision in movieDecisions)
+                    {
+                        pendingQueue.Add(Tuple.Create(decision, PendingReleaseReason.Delay));
+                    }
+
+                    _logger.Info(
+                        "Download decision override deferred grab for movie '{0}' by {1} minutes: {2}",
+                        movie.Title,
+                        overrideResult.DeferMinutes.Value,
+                        overrideResult.RejectionReason);
+                }
+                else
+                {
+                    // Reject all decisions for this movie
+                    rejected.AddRange(movieDecisions);
+                    _logger.Info(
+                        "Download decision override rejected all releases for movie '{0}': {1}",
+                        movie.Title,
+                        overrideResult.RejectionReason);
+                }
+            }
+
+            return finalDecisions;
         }
 
         private async Task<ProcessedDecisionResult> ProcessDecisionInternal(DownloadDecision decision, int? downloadClientId = null)
