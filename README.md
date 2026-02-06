@@ -27,17 +27,6 @@ The feature was proposed in [#11372](https://github.com/Radarr/Radarr/issues/113
 
 **Fail-safe**: If the webhook fails, times out, or isn't configured — Radarr falls back to its normal selection.
 
-### Settings UI
-
-The configuration lives in **Settings → Download Clients → Download Decision Override**:
-
-![Download Decision Override — Radarr](docs/screenshots/radarr-ddo-settings.png)
-
-- **Enable**: Toggle the feature on/off
-- **Webhook URL**: The endpoint that receives candidate releases
-- **Timeout**: Max wait time before falling back to default selection (recommended: 30s)
-- **Username/Password**: Optional Basic authentication
-
 ### Quick start
 
 ```yaml

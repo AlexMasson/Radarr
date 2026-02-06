@@ -134,6 +134,9 @@ RUN echo "**** install packages ****" && \
 # Copy built application from build stage
 COPY --from=backend-build /output /app/radarr/bin
 
+# Fix ffprobe permissions (copied as 0744, needs to be executable by non-root user abc)
+RUN chmod 755 /app/radarr/bin/ffprobe
+
 # Create package_info (like LinuxServer does)
 RUN echo -e "UpdateMethod=docker\nBranch=fork\nPackageVersion=${VERSION}\nPackageAuthor=fork" > /app/radarr/package_info
 
