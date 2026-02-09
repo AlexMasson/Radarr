@@ -106,5 +106,16 @@ namespace NzbDrone.Core.Configuration
 
         CertificateValidationType CertificateValidation { get; }
         string ApplicationUrl { get; }
+
+        // External Hooks
+        bool ExternalRejectionHookEnabled { get; set; }
+        string ExternalRejectionHookUrl { get; set; }
+        int ExternalRejectionHookTimeout { get; set; }
+        bool ExternalPrioritizationHookEnabled { get; set; }
+        string ExternalPrioritizationHookUrl { get; set; }
+        int ExternalPrioritizationHookTimeout { get; set; }
+        string ExternalHooksUsername { get; set; }
+        string ExternalHooksPassword { get; set; }
+        string ExternalHooksSkipTag { get; set; }
     }
 }

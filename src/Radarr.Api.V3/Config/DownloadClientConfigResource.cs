@@ -12,6 +12,17 @@ namespace Radarr.Api.V3.Config
 
         public bool AutoRedownloadFailed { get; set; }
         public bool AutoRedownloadFailedFromInteractiveSearch { get; set; }
+
+        // External Hooks
+        public bool ExternalRejectionHookEnabled { get; set; }
+        public string ExternalRejectionHookUrl { get; set; }
+        public int ExternalRejectionHookTimeout { get; set; }
+        public bool ExternalPrioritizationHookEnabled { get; set; }
+        public string ExternalPrioritizationHookUrl { get; set; }
+        public int ExternalPrioritizationHookTimeout { get; set; }
+        public string ExternalHooksUsername { get; set; }
+        public string ExternalHooksPassword { get; set; }
+        public string ExternalHooksSkipTag { get; set; }
     }
 
     public static class DownloadClientConfigResourceMapper
@@ -26,7 +37,18 @@ namespace Radarr.Api.V3.Config
                 CheckForFinishedDownloadInterval = model.CheckForFinishedDownloadInterval,
 
                 AutoRedownloadFailed = model.AutoRedownloadFailed,
-                AutoRedownloadFailedFromInteractiveSearch = model.AutoRedownloadFailedFromInteractiveSearch
+                AutoRedownloadFailedFromInteractiveSearch = model.AutoRedownloadFailedFromInteractiveSearch,
+
+                // External Hooks
+                ExternalRejectionHookEnabled = model.ExternalRejectionHookEnabled,
+                ExternalRejectionHookUrl = model.ExternalRejectionHookUrl,
+                ExternalRejectionHookTimeout = model.ExternalRejectionHookTimeout,
+                ExternalPrioritizationHookEnabled = model.ExternalPrioritizationHookEnabled,
+                ExternalPrioritizationHookUrl = model.ExternalPrioritizationHookUrl,
+                ExternalPrioritizationHookTimeout = model.ExternalPrioritizationHookTimeout,
+                ExternalHooksUsername = model.ExternalHooksUsername,
+                ExternalHooksPassword = model.ExternalHooksPassword,
+                ExternalHooksSkipTag = model.ExternalHooksSkipTag
             };
         }
     }

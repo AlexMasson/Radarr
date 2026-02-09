@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using NLog;
 using NzbDrone.Core.DecisionEngine;
 using NzbDrone.Core.Download.Clients;
+using NzbDrone.Core.Download.ExternalHooks;
 using NzbDrone.Core.Download.Pending;
 using NzbDrone.Core.Exceptions;
 using NzbDrone.Core.Indexers;
@@ -22,26 +23,40 @@ namespace NzbDrone.Core.Download
         private readonly IDownloadService _downloadService;
         private readonly IPrioritizeDownloadDecision _prioritizeDownloadDecision;
         private readonly IPendingReleaseService _pendingReleaseService;
+        private readonly IExternalRejectionHookService _externalRejectionHookService;
+        private readonly IExternalPrioritizationHookService _externalPrioritizationHookService;
         private readonly Logger _logger;
 
         public ProcessDownloadDecisions(IDownloadService downloadService,
                                         IPrioritizeDownloadDecision prioritizeDownloadDecision,
                                         IPendingReleaseService pendingReleaseService,
+                                        IExternalRejectionHookService externalRejectionHookService,
+                                        IExternalPrioritizationHookService externalPrioritizationHookService,
                                         Logger logger)
         {
             _downloadService = downloadService;
             _prioritizeDownloadDecision = prioritizeDownloadDecision;
             _pendingReleaseService = pendingReleaseService;
+            _externalRejectionHookService = externalRejectionHookService;
+            _externalPrioritizationHookService = externalPrioritizationHookService;
             _logger = logger;
         }
 
         public async Task<ProcessedDecisions> ProcessDecisions(List<DownloadDecision> decisions)
         {
             var qualifiedReports = GetQualifiedReports(decisions);
+            var rejected = decisions.Where(d => d.Rejected).ToList();
+
+            // External Rejection Hook: filter releases before prioritization
+            qualifiedReports = await ApplyExternalRejectionHookAsync(qualifiedReports, rejected);
+
             var prioritizedDecisions = _prioritizeDownloadDecision.PrioritizeDecisionsForMovies(qualifiedReports);
+
+            // External Prioritization Hook: reorder releases after Radarr's sorting
+            prioritizedDecisions = await ApplyExternalPrioritizationHookAsync(prioritizedDecisions);
+
             var grabbed = new List<DownloadDecision>();
             var pending = new List<DownloadDecision>();
-            var rejected = decisions.Where(d => d.Rejected).ToList();
 
             var pendingAddQueue = new List<Tuple<DownloadDecision, PendingReleaseReason>>();
 
@@ -222,6 +237,81 @@ namespace NzbDrone.Core.Download
                     return ProcessedDecisionResult.Skipped;
                 }
             }
+        }
+
+        private async Task<List<DownloadDecision>> ApplyExternalRejectionHookAsync(
+            List<DownloadDecision> qualifiedReports,
+            List<DownloadDecision> rejected)
+        {
+            var approvedOnly = qualifiedReports.Where(d => d.Approved).ToList();
+
+            if (approvedOnly.Count == 0)
+            {
+                return qualifiedReports;
+            }
+
+            // Group by movie and evaluate each group
+            var movieGroups = approvedOnly.GroupBy(d => d.RemoteMovie.Movie.Id).ToList();
+            var allAccepted = new List<DownloadDecision>();
+
+            foreach (var group in movieGroups)
+            {
+                var result = await _externalRejectionHookService.EvaluateAsync(group.ToList());
+                allAccepted.AddRange(result.Accepted);
+                rejected.AddRange(result.Rejected);
+            }
+
+            // Combine accepted with any temporarily rejected reports (they bypass the hook)
+            var temporarilyRejected = qualifiedReports.Where(d => d.TemporarilyRejected).ToList();
+            allAccepted.AddRange(temporarilyRejected);
+
+            return allAccepted;
+        }
+
+        private async Task<List<DownloadDecision>> ApplyExternalPrioritizationHookAsync(
+            List<DownloadDecision> prioritizedDecisions)
+        {
+            if (prioritizedDecisions.Count == 0)
+            {
+                return prioritizedDecisions;
+            }
+
+            // Group by movie and evaluate each group
+            var movieGroups = prioritizedDecisions
+                .Where(d => d.RemoteMovie.Movie != null)
+                .GroupBy(d => d.RemoteMovie.Movie.Id)
+                .ToList();
+
+            var result = new List<DownloadDecision>();
+
+            foreach (var group in movieGroups)
+            {
+                var groupList = group.ToList();
+                var prioritizationResult = await _externalPrioritizationHookService.EvaluateAsync(groupList);
+
+                if (prioritizationResult.ShouldProceed)
+                {
+                    result.AddRange(prioritizationResult.ModifiedDecisions);
+                }
+                else if (prioritizationResult.DeferMinutes.HasValue)
+                {
+                    // Mark all as temporarily rejected for delay
+                    foreach (var decision in groupList)
+                    {
+                        var rejection = new DownloadRejection(
+                            DownloadRejectionReason.ExternalHookRejection,
+                            $"[External] Deferred: {prioritizationResult.Reason}",
+                            RejectionType.Temporary);
+
+                        result.Add(new DownloadDecision(decision.RemoteMovie, rejection));
+                    }
+                }
+            }
+
+            // Add any decisions without a movie (shouldn't happen but safety)
+            result.AddRange(prioritizedDecisions.Where(d => d.RemoteMovie.Movie == null));
+
+            return result;
         }
     }
 }

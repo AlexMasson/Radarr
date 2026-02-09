@@ -450,6 +450,61 @@ namespace NzbDrone.Core.Configuration
             set { SetValue("TrustCgnatIpAddresses", value); }
         }
 
+        // External Hooks
+        public bool ExternalRejectionHookEnabled
+        {
+            get { return GetValueBoolean("ExternalRejectionHookEnabled", false); }
+            set { SetValue("ExternalRejectionHookEnabled", value); }
+        }
+
+        public string ExternalRejectionHookUrl
+        {
+            get { return GetValue("ExternalRejectionHookUrl", ""); }
+            set { SetValue("ExternalRejectionHookUrl", value); }
+        }
+
+        public int ExternalRejectionHookTimeout
+        {
+            get { return GetValueInt("ExternalRejectionHookTimeout", 10); }
+            set { SetValue("ExternalRejectionHookTimeout", value); }
+        }
+
+        public bool ExternalPrioritizationHookEnabled
+        {
+            get { return GetValueBoolean("ExternalPrioritizationHookEnabled", false); }
+            set { SetValue("ExternalPrioritizationHookEnabled", value); }
+        }
+
+        public string ExternalPrioritizationHookUrl
+        {
+            get { return GetValue("ExternalPrioritizationHookUrl", ""); }
+            set { SetValue("ExternalPrioritizationHookUrl", value); }
+        }
+
+        public int ExternalPrioritizationHookTimeout
+        {
+            get { return GetValueInt("ExternalPrioritizationHookTimeout", 30); }
+            set { SetValue("ExternalPrioritizationHookTimeout", value); }
+        }
+
+        public string ExternalHooksUsername
+        {
+            get { return GetValue("ExternalHooksUsername", ""); }
+            set { SetValue("ExternalHooksUsername", value); }
+        }
+
+        public string ExternalHooksPassword
+        {
+            get { return GetValue("ExternalHooksPassword", ""); }
+            set { SetValue("ExternalHooksPassword", value); }
+        }
+
+        public string ExternalHooksSkipTag
+        {
+            get { return GetValue("ExternalHooksSkipTag", ""); }
+            set { SetValue("ExternalHooksSkipTag", value); }
+        }
+
         private string GetValue(string key)
         {
             return GetValue(key, string.Empty);
