@@ -112,5 +112,7 @@ namespace NzbDrone.Core.Configuration
         string LlmApiKey { get; set; }
         string LlmModel { get; set; }
         int LlmTimeout { get; set; }
+        int LlmMaxTokens { get; set; }
+        double LlmTemperature { get; set; }
     }
 }
