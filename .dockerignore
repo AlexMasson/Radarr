@@ -1,0 +1,21 @@
+# Exclude build artifacts and dependencies from Docker build context
+.git
+.github
+.vscode
+.idea
+node_modules
+**/node_modules
+_output
+_temp
+_tests
+**/bin/Debug
+**/bin/Release
+**/obj
+**/.vs
+
+# Frontend dev artifacts (NB: frontend/build/ contains webpack config, NOT build output)
+*.log
+
+# OS / editor
+.DS_Store
+Thumbs.db
